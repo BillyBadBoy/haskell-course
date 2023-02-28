@@ -1,16 +1,23 @@
+import Data.List
 -- Question 1
 -- Write a function called `repeat'` that takes a value and creates an infinite list with
 -- the value provided as every element of the list.
 --
 -- >>> repeat 17
---[17,17,17,17,17,17,17,17,17...
+-- ProgressCancelledException
 
+repeat' :: a -> [a]
+repeat' x = x : repeat' x
 
 -- Question 2
 -- Using the `repeat'` function and the `take` function we defined in the lesson (comes with Haskell),
 -- create a function called `replicate'` that takes a number `n` and a value `x` and creates a list
 -- of length `n` with `x` as the value of every element. (`n` has to be Integer.)
 --
+
+replicate' :: Int -> a -> [a]
+replicate' n x = take n $ repeat' x
+
 -- >>> replicate 0 True
 -- []
 -- >>> replicate (-1) True
@@ -24,6 +31,9 @@
 --
 -- >>> concat' [[1,2],[3],[4,5,6]]
 -- [1,2,3,4,5,6]
+
+concat' :: [[a]] -> [a]
+concat' = foldr (++) []
 
 
 -- Question 4
@@ -45,7 +55,10 @@
 -- >>> zip' [1..] []
 -- []
 
-
+zip' :: [a] -> [b] -> [(a, b)]
+zip' _ [] = []
+zip' [] _ = []
+zip' (a:as) (b:bs) = (a, b) : zip' as bs
 
 -- Question 5
 -- Create a function called `zipWith'` that generalises `zip'` by zipping with a
@@ -60,6 +73,10 @@
 -- >>> zipWith (+) [1, 2, 3] [4, 5, 6]
 -- [5,7,9]
 
+zipWith' :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith' _ _ [] = []
+zipWith' _ [] _ = []
+zipWith' f (a:as) (b:bs) = f a b : zipWith' f as bs
 
 -- Question 6
 -- Write a function called `takeWhile'` that takes a precate and a list and
@@ -72,11 +89,21 @@
 -- >>> takeWhile (< 0) [1,2,3]
 -- []
 
+takeWhile' :: (a -> Bool) -> [a] -> [a]
+takeWhile' _ [] = []
+takeWhile' p (a:as) 
+  | p a = a : takeWhile' p as
+  | otherwise = []
+
 
 -- Question 7 (More difficult)
 -- Write a function that takes in an integer n, calculates the factorial n! and
 -- returns a string in the form of 1*2* ... *n = n! where n! is the actual result.
 
+factorial :: Integer -> String
+factorial 1 = "1 = 1"
+factorial n = fst strAndVal ++ " = " ++ show (snd strAndVal) 
+  where strAndVal = foldl' (\(s, x) y -> (s ++ "*" ++ show y, x * y)) ("1", 1) [2..n] 
 
 -- Question 8
 -- Below you have defined some beer prices in bevogBeerPrices and your order list in
@@ -87,8 +114,8 @@ bevogBeerPrices :: [(String, Double)]
 bevogBeerPrices =
   [ ("Tak", 6.00),
     ("Kramah", 7.00),
-    ("Ond", 8.50),
-    ("Baja", 7.50)
+    ("Baja", 7.50),
+    ("Ond", 8.50)
   ]
 
 orderList :: [(String, Double)]
@@ -100,3 +127,13 @@ orderList =
 
 deliveryCost :: Double
 deliveryCost = 8.50
+
+cost :: [(String, Double)] -> Double
+cost order = go order bevogBeerPrices where
+  
+  go [] _ = deliveryCost
+  go _ [] = deliveryCost  -- order contains unknown beer !!!
+
+  go ((beer1, quantity):orders) ((beer2, price):prices) 
+    | beer1 == beer2  = price * quantity + go orders prices
+    | otherwise = go ((beer1, quantity):orders) prices
