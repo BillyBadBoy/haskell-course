@@ -1,3 +1,4 @@
+import Data.List
 {-
 
 **************************** IMPORTANT ****************************
@@ -53,3 +54,25 @@ still need to make another choice.
 
 6. Adapt adapt "solveMaze" function to use "showCurrentChoice" and play with your new game using GHCi! :D
 -}
+
+data Move = GoLeft | GoRight | GoForward deriving (Eq, Show)
+
+infixr 5 :>
+
+data Maze = Exit | Wall | Move :> Maze deriving Show
+
+move :: Maze -> Move -> Maze
+move Exit _ = Exit
+move Wall _ = Wall
+move (m :> ms) n | m == n    = ms    -- right move
+                 | otherwise = Wall  -- wrong move
+
+testMaze = GoForward :> GoLeft :> GoForward :> GoRight :> Exit
+
+solveMaze :: Maze -> [Move] -> String
+solveMaze maze = showCurrentChoice . foldl' move maze
+
+showCurrentChoice :: Maze -> String
+showCurrentChoice Exit = "YOU'VE FOUND THE EXIT!!"
+showCurrentChoice Wall = "You've hit a wall!"
+showCurrentChoice    _ = "You're still inside the maze. Choose a path, brave adventurer: GoLeft, GoRight, or GoForward."
