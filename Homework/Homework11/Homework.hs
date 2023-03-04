@@ -2,6 +2,7 @@ import Data.List
 import System.CPUTime (getCPUTime)
 import System.Directory (doesFileExist, listDirectory)
 import Text.XHtml (thead)
+import Control.Monad (filterM, when, unless)
 
 {-
 We imported some functions that you'll need to complete the homework.
@@ -19,7 +20,27 @@ Define an IO action that counts the number of files in the current directory
 and prints it to the terminal inside a string message.
 -}
 
--- listFiles :: IO ()
+listFiles :: IO ()
+listFiles = do
+  allPaths <- listDirectory "."
+  numFiles <- countFiles allPaths
+  putStrLn $ "Directory contains " ++ show numFiles ++ " files."
+
+  where
+    countFiles :: [FilePath] -> IO Int
+    countFiles []    = return 0
+    countFiles (h:t) = do
+      headCount <- doesFileExist h >>= (\b -> return $ if b then 1 else 0)
+      tailCount <- countFiles t
+      return $ headCount + tailCount
+
+
+-- alternative using filterM
+listFiles' :: IO ()
+listFiles' = do
+  allPaths  <- listDirectory "."
+  filePaths <- filterM doesFileExist allPaths
+  putStrLn $ "Directory contains " ++ show (length filePaths) ++ " files."
 
 {-
 -- Question 2 --
@@ -28,7 +49,11 @@ to a file called msg.txt, and after that, it reads the text from the msg.txt
 file and prints it back. Use the writeFile and readFile functions.
 -}
 
--- createMsg :: IO ()
+createMsg :: IO ()
+createMsg = do
+  putStrLn "Enter a message:"
+  getLine >>= writeFile "./msg.txt"
+  readFile "./msg.txt" >>= putStrLn
 
 
 {-
@@ -70,8 +95,12 @@ Use the getCPUTime :: IO Integer function to get the CPU time before and after t
 The CPU time here is given in picoseconds (which is 1/1000000000000th of a second).
 -}
 
--- timeIO :: IO a -> IO ()
-
+timeIO :: IO a -> IO ()
+timeIO action = do
+  t1 <- getCPUTime
+  action
+  t2 <- getCPUTime
+  putStrLn $ "Action took " ++ show ((t2 - t1) `div` 1000000000000) ++ " seconds."
 
 {-
 -- Question 4 --
@@ -80,7 +109,37 @@ and compares the time all three algorithms take to produce the largest prime bef
 limit. Print the number and time to the standard output.
 -}
 
--- benchmark :: IO ()
+benchmark :: IO ()
+benchmark = do
+  limit :: Integer <- readLn
+
+  timeIO $ run "primes1" primes1 limit
+  timeIO $ run "primes2" primes2 limit
+  timeIO $ run "primes3" primes3 limit
+
+  where
+    run name fn limit = do
+      putStrLn $ "\nRunning " ++ name ++ ":"
+      let primes = fn limit
+      putStrLn $ "Largest prime found: " ++ show (last primes)
+
+-- sample output:
+
+-- ghci> benchmark
+-- 20000
+
+-- Running primes1:
+-- Largest prime found: 19997
+-- Action took 2 seconds.
+
+-- Running primes2:
+-- Largest prime found: 19997
+-- Action took 15 seconds.
+
+-- Running primes3:
+-- Largest prime found: 19997
+-- Action took 2 seconds.
+
 
 {-
  -- Question 5 -- EXTRA CREDITS -- (In case the previous ones were too easy)
@@ -102,3 +161,32 @@ Below you can see an example output of how such a structure looks like:
 HINT: You can use the function doesFileExist, which takes in a FilePath and returns
 True if the argument file exists and is not a directory, and False otherwise.
 -}
+
+-- (fullPath, fileName) e.g. ("./foo/bar/baz.hs", "baz.hs")
+type Path = (String, String)
+
+printCurrentDir :: IO ()
+printCurrentDir = do
+  files <- listDirectory "."
+  printDir 0 $ map (\f -> (f, f)) files
+
+  where
+
+  printDir :: Int -> [Path] -> IO ()
+  printDir _         [] = return ()                                     
+  printDir depth    [p] = printItem depth True  p
+  printDir depth (p:ps) = printItem depth False p >> printDir depth ps
+
+  printItem :: Int -> Bool -> Path -> IO ()
+  printItem depth isLast path = do
+    
+    -- print item
+    putStr   $ replicate (4 * depth) ' '
+    putStr   $ if isLast then "└── " else "├── "
+    putStrLn $ snd path
+
+    -- print child items (if item is directory)
+    isFile <- doesFileExist $ fst path
+    files  <- if isFile then return [] else listDirectory $ fst path
+    let paths = map (\f -> (fst path ++ "/" ++ f, f)) files
+    printDir (depth + 1) paths
