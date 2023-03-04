@@ -3,6 +3,8 @@ import System.CPUTime (getCPUTime)
 import System.Directory (doesFileExist, listDirectory)
 import Text.XHtml (thead)
 import Control.Monad (filterM, when, unless)
+import System.Posix (PathVar(PathNameLimit))
+import System.FilePath.Posix (joinPath)
 
 {-
 We imported some functions that you'll need to complete the homework.
@@ -19,6 +21,10 @@ You can hover over the functions to know what they do.
 Define an IO action that counts the number of files in the current directory
 and prints it to the terminal inside a string message.
 -}
+
+-- #################################################
+-- assume we don NOT include files in sb-directories
+-- #################################################
 
 listFiles :: IO ()
 listFiles = do
@@ -162,31 +168,43 @@ HINT: You can use the function doesFileExist, which takes in a FilePath and retu
 True if the argument file exists and is not a directory, and False otherwise.
 -}
 
--- (fullPath, fileName) e.g. ("./foo/bar/baz.hs", "baz.hs")
-type Path = (String, String)
+type Path = [String]
 
 printCurrentDir :: IO ()
 printCurrentDir = do
   files <- listDirectory "."
-  printDir 0 $ map (\f -> (f, f)) files
+  putStrLn "."
+  printDir 0 $ map (: []) files
 
   where
 
   printDir :: Int -> [Path] -> IO ()
-  printDir _         [] = return ()                                     
+  printDir _         [] = return ()
   printDir depth    [p] = printItem depth True  p
   printDir depth (p:ps) = printItem depth False p >> printDir depth ps
 
   printItem :: Int -> Bool -> Path -> IO ()
   printItem depth isLast path = do
-    
+
     -- print item
-    putStr   $ replicate (4 * depth) ' '
-    putStr   $ if isLast then "└── " else "├── "
-    putStrLn $ snd path
+    putStrLn $ replicate (4 * depth) ' ' ++ (if isLast then "└── " else "├── ") ++ head path
 
     -- print child items (if item is directory)
-    isFile <- doesFileExist $ fst path
-    files  <- if isFile then return [] else listDirectory $ fst path
-    let paths = map (\f -> (fst path ++ "/" ++ f, f)) files
-    printDir (depth + 1) paths
+    let fName = joinPath $ reverse path
+    isFile <- doesFileExist fName
+    files  <- if isFile then return [] else listDirectory fName
+    printDir (depth + 1) $ map (: path) files
+
+-- sample output: 
+
+-- ghci> printCurrentDir 
+-- .
+-- ├── Homework.hs
+-- ├── dir1
+--     ├── f1
+--     └── f2
+-- └── dir2
+--     ├── f3
+--     ├── f4
+--     └── dir3
+--         └── f5
